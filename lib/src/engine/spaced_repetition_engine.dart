@@ -1,9 +1,13 @@
 import '../algorithm/custom_algorithm.dart';
+import '../algorithm/fsrs_algorithm.dart';
 import '../algorithm/sm2_algorithm.dart';
 import '../algorithm/sm2_plus_algorithm.dart';
 import '../algorithm/srs_algorithm.dart';
+import '../analytics/analytics.dart';
+import '../models/fsrs_models.dart';
 import '../models/interval_preview.dart';
 import '../models/review_card.dart';
+import '../models/review_log.dart';
 import '../models/review_quality.dart';
 import '../models/review_result.dart';
 import '../models/srs_settings.dart';
@@ -63,9 +67,88 @@ class SpacedRepetitionEngine {
         return const SM2Algorithm();
       case SRSAlgorithmType.sm2Plus:
         return const SM2PlusAlgorithm();
+      case SRSAlgorithmType.fsrs:
+        return FSRSAlgorithm();
       case SRSAlgorithmType.custom:
         return const CustomAlgorithm();
     }
+  }
+
+  // ============================================================
+  // FSRS-SPECIFIC METHODS
+  // ============================================================
+
+  /// Gets the current retrievability of a card.
+  ///
+  /// Retrievability is the probability of successfully recalling the card.
+  /// Only meaningful for FSRS algorithm; returns 0 for other algorithms.
+  double getRetrievability(ReviewCard card, {DateTime? asOf}) {
+    if (_algorithm is FSRSAlgorithm) {
+      return (_algorithm as FSRSAlgorithm).getRetrievability(card, asOf: asOf);
+    }
+    // For non-FSRS algorithms, estimate from card state
+    const forgettingCurve = ForgettingCurve();
+    return forgettingCurve.currentRetrievability(card, asOf: asOf);
+  }
+
+  /// Gets the FSRS state of a card (stability, difficulty).
+  ///
+  /// Returns null if not using FSRS algorithm.
+  FSRSState? getFSRSState(ReviewCard card) {
+    if (_algorithm is FSRSAlgorithm) {
+      return (_algorithm as FSRSAlgorithm).getState(card);
+    }
+    return null;
+  }
+
+  /// Generates a forgetting curve for a card.
+  List<ForgettingCurvePoint> getForgettingCurve(
+    ReviewCard card, {
+    int days = 30,
+  }) {
+    const curve = ForgettingCurve();
+    return curve.generate(card, days: days);
+  }
+
+  /// Generates a workload forecast.
+  List<WorkloadForecastDay> getWorkloadForecast(
+    List<ReviewCard> cards, {
+    int days = 30,
+    int newCardsPerDay = 20,
+  }) {
+    const forecast = WorkloadForecast();
+    return forecast.generate(
+      cards,
+      days: days,
+      newCardsPerDay: newCardsPerDay,
+    );
+  }
+
+  /// Creates a review log entry from a review result.
+  ReviewLog createReviewLog(
+    ReviewResult result, {
+    int? reviewDurationMs,
+  }) {
+    return ReviewLog(
+      cardId: result.updatedCard.id,
+      reviewTime: result.reviewedAt,
+      rating: result.quality,
+      scheduledInterval: result.previousCard.interval,
+      actualInterval: result.reviewedAt.difference(
+        result.previousCard.lastReviewedAt ?? result.previousCard.createdAt,
+      ),
+      retrievability: _algorithm is FSRSAlgorithm
+          ? getRetrievability(result.previousCard, asOf: result.reviewedAt)
+          : null,
+      stabilityBefore: getFSRSState(result.previousCard)?.stability,
+      stabilityAfter: getFSRSState(result.updatedCard)?.stability,
+      difficultyBefore: getFSRSState(result.previousCard)?.difficulty,
+      difficultyAfter: getFSRSState(result.updatedCard)?.difficulty,
+      easeFactorBefore: result.previousCard.easeFactor,
+      easeFactorAfter: result.updatedCard.easeFactor,
+      algorithm: _settings.algorithmType.name,
+      reviewDurationMs: reviewDurationMs,
+    );
   }
 
   /// Gets the current settings.

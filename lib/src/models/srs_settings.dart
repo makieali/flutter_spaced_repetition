@@ -6,6 +6,10 @@ enum SRSAlgorithmType {
   /// Enhanced SM-2 algorithm with improvements.
   sm2Plus,
 
+  /// FSRS (Free Spaced Repetition Scheduler) - modern ML-based algorithm.
+  /// 20-30% more efficient than SM-2.
+  fsrs,
+
   /// User-defined custom algorithm.
   custom,
 }
