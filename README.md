@@ -321,8 +321,11 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
+## Used In Production
+
+- [Revisable](https://github.com/makieali/revisable-app) - A powerful flashcard app for efficient learning
+
 ## Acknowledgments
 
 - Based on the SM-2 algorithm by Piotr Wozniak
 - Inspired by Anki and SuperMemo
-- Extracted and improved from the [Revisable app](https://github.com/makieali/revisable-app)
